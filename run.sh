@@ -14,7 +14,9 @@ done
 
 if [ -z "$RES" ]
 then
-    echo "require -r param"
+    echo "require -r param, default -r='www'"
+    RES="www"
+    erl <<< "httpd:run(\"${RES}\")."
 else
 	if [ -z "$CPUS" ]
 	then
