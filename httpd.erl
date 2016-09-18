@@ -11,7 +11,7 @@ run(ROOTDIR) ->
     listen().
 
 listen() ->
-    case gen_tcp:listen(3000, [binary, {packet, 0}, {active, false}]) of 
+    case gen_tcp:listen(80, [binary, {packet, 0}, {active, false}]) of 
         {ok, _socket} -> 
             io:format("server run   (O_O ) ~n", []),
             accept_loop(_socket);

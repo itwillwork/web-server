@@ -2,12 +2,18 @@
 -export([loop/1, getSrc/1]).
 
 -define(INDEX, "index.html").
+-define(SLASH, "/").
 
 loop(_socket) ->
     case gen_tcp:recv(_socket, 0) of
         {ok, _data} ->
             {_method,  _url} = format_http:parse(_data),
-            {_codeStatus, _src, _contentType, _date, _hasBody, _contentLength} = getResponce(_method, _url),
+            case isNotValidUrl(_url) of 
+            	false ->
+            		{_codeStatus, _src, _contentType, _date, _hasBody, _contentLength} = getResponce(_method, _url);
+        		true ->
+        			{_codeStatus, _src, _contentType, _date, _hasBody, _contentLength} = {403, null, null, null, false, null}
+			end,
             _header = format_http:getHeader(_codeStatus, _contentType, _date, _contentLength),
             %io:fwrite("HEADER ~n ~p ~n~n", [list_to_binary(_header)]),
             %io:fwrite("SRC ~n ~p ~n~n", [list_to_binary(_src)]),
@@ -43,30 +49,34 @@ getResponce(_method, _url) ->
 
 getSrc(_url) ->
 	[{_, ROOTDIR}] = ets:lookup(settings, "root"),
-	_validUrl = "/" ++ getValidUrl(_url),
+	_baseUrl = ROOTDIR ++ ?SLASH ++ http_uri:decode(binary_to_list(_url)),
 	case binary:last(_url) of
 	    $/ ->
-	       	_src = ROOTDIR ++ _validUrl ++ ?INDEX,
-	       	_path = ROOTDIR ++ _validUrl;
+	       	_src = _baseUrl ++ ?SLASH ++ ?INDEX,
+	       	_path = _baseUrl;
 	    _ ->
-	        _src = ROOTDIR ++ _validUrl,
+	        _src = _baseUrl,
 	        %это будет путь до файла несмотря на то что по идеи должен быть путь к папке
-	        _path = _src
+	        _path = _baseUrl
 	end,
-	case filelib:is_file(_src) of
+	_validSrc = getValidUrl(_src),
+	_validSrcPath = getValidUrl(_path),
+	case filelib:is_file(_validSrc) of
 	    true ->
-	       	{200, _src};
+	       	{200, _validSrc};
 	    false ->
-	    	case filelib:is_dir(_path) of 
+	    	case filelib:is_dir(_validSrcPath) of 
 	    		true ->
-	        		{403, _src};
+	        		{403, _validSrc};
         		false -> 
-        			{404, _src}
+        			{404, _validSrc}
     			end
 	end.
 
-
 getValidUrl(_url) ->
+	_urlBits = string:tokens(_url, "/"),
+	string:join(_urlBits, "/").
+
+isNotValidUrl(_url) ->
 	_urlBits = string:tokens(binary_to_list(_url), "/"),
-	_validBits = lists:delete("..", _urlBits),
-	string:join(_validBits, "/").
+	lists:member("..", _urlBits).

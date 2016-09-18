@@ -2,7 +2,7 @@
 -export([parse/1, getHeader/4, getInfo/1]).
 
 parse(_url) ->
-	[_method, _path| _] = binary:split(_url, [<<" ">>, <<"?">>, <<"\r\n">>], [global]),
+	[_method, _path| _] = binary:split(_url, [<<" ">>, <<"?">>, <<"\r\n">>, <<"\n">>, <<"\r">>], [global]),
 	{_method, _path}.
 
 getHeader(_codeStatus, _contentType, _date, _contentLength) -> 
@@ -11,9 +11,7 @@ getHeader(_codeStatus, _contentType, _date, _contentLength) ->
         	_extra = "Content-Type: " ++ _contentType ++ "\r\nContent-Length: " ++ _contentLength ++ "\r\nDate: " ++ _date ++ "\r\n";
         404 ->
         	_extra = "Date: " ++ _date ++ "\r\n";
-        403 ->
-        	_extra = "";
-        405 ->
+        _ ->
         	_extra = ""
     end,
 	"HTTP/1.1 "++ integer_to_list(_codeStatus) ++" OK\r\nServer: noname\r\nX-Powered-By: Erlang\r\n" ++ _extra ++ "Connection: close\r\n\r\n".
@@ -21,12 +19,12 @@ getHeader(_codeStatus, _contentType, _date, _contentLength) ->
 getInfo(_url) -> 
 	{_codeStatus, _src} = server_worker:getSrc(_url),
 	case _codeStatus of
-		403 -> 
-			{_contentType, _date, _contentLength} = {null, null, null};
 		404 ->
 			{_contentType, _date, _contentLength} = {null, getDate(), null}; 
 		200 ->
-			{_contentType, _date, _contentLength} = {getContentType(_src), getDate(), getContentLength(_src)}
+			{_contentType, _date, _contentLength} = {getContentType(_src), getDate(), getContentLength(_src)};
+		_ -> 
+			{_contentType, _date, _contentLength} = {null, null, null}
 		end,
 	{_codeStatus, _src, _contentType, _date, _contentLength}.
 
