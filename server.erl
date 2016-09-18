@@ -1,42 +1,17 @@
 -module(server).
 -export([listen/0]).
 
--define(TURN_ON_LOG, true).
-
 listen() ->
-    {ok, _socket} = gen_tcp:listen(80, [binary, {packet, 0}, {active, false}]),
-    accept(_socket).
-
-accept(_socket) ->
-    {ok, _worker} = gen_tcp:accept(_socket),
-    spawn(fun() -> loop(_worker) end),
-    accept(_socket).
-
-loop(_socket) ->
-    case gen_tcp:recv(_socket, 0) of
-        {ok, _data} ->
-            % получили путь и протокол
-                % method
-                % url
-            {_method,  _url} = format_http:parse(_data),
-            case ?TURN_ON_LOG of 
-                true -> 
-                    io:fwrite("method ~p ~nurl ~p ~n", [_method, _url]);
-                false ->
-                    ok
-            end, 
-            % логика из параметров ответ в фомате параметров
-                % code_sratus
-                % date
-                % contentType
-                % needBody
-                % src
-            {_codeStatus, _date, _contentType, _needBody, _src} = server_logic:getResponce(),
-            % сформировали ответ из объекта
-                % header
-            % отправили 
-            gen_tcp:send(_socket, _data),
-            loop(_socket);
-        {error, closed} ->
-            ok
+    case gen_tcp:listen(3000, [binary, {packet, 0}, {active, false}]) of 
+        {ok, _socket} -> 
+            io:format("server run   ヽ(ﾟ〇ﾟ)ﾉ~n", []),
+            accept_loop(_socket);
+        {error, _message} ->
+            io:format("server not run   (*-_-)~n", [])
     end.
+
+accept_loop(_socket) ->
+    {ok, _workerSocket} = gen_tcp:accept(_socket),
+    _pid = spawn(server_worker, loop, [_workerSocket]),
+    gen_tcp:controlling_process(_workerSocket, _pid),
+    accept_loop(_socket).
