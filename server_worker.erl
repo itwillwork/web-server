@@ -1,37 +1,16 @@
 -module(server_worker).
 -export([loop/1, getSrc/1]).
 
--define(TURN_ON_LOG, true).
 -define(INDEX, "index.html").
--define(DOCUMENT_ROOT, "/Users/edgarnurullin/dev/projects/web-server/www").
 
 loop(_socket) ->
     case gen_tcp:recv(_socket, 0) of
         {ok, _data} ->
             {_method,  _url} = format_http:parse(_data),
-            case ?TURN_ON_LOG of 
-                true -> 
-                    io:fwrite("~n~nmethod ~p ~nurl ~p ~n", [_method, _url]);
-                false ->
-                    ok
-            end, 
             {_codeStatus, _src, _contentType, _date, _hasBody, _contentLength} = getResponce(_method, _url),
-            case ?TURN_ON_LOG of 
-                true -> 
-                    io:fwrite(
-                        "code status ~p ~ndate ~p ~ncontent-type ~p ~nneed body in responce  ~p ~ncontent-length ~p ~nsrc  ~p ~n", 
-                        [_codeStatus, _date, _contentType, _hasBody, _contentLength, _src]
-                    );
-                false ->
-                    ok
-            end, 
             _header = format_http:getHeader(_codeStatus, _contentType, _date, _contentLength),
-            case ?TURN_ON_LOG of 
-                true -> 
-                    io:fwrite("HEADER ~n ~p", [list_to_binary(_header)]);
-                false ->
-                    ok
-            end, 
+            %io:fwrite("HEADER ~n ~p ~n~n", [list_to_binary(_header)]),
+            %io:fwrite("SRC ~n ~p ~n~n", [list_to_binary(_src)]),
             gen_tcp:send(_socket, _header),
             case _hasBody of 
                 true -> 
@@ -43,7 +22,7 @@ loop(_socket) ->
         {error, closed} ->
             ok
     end.
-    
+
 getResponce(_method, _url) ->
 	case _method of
         <<"GET">> ->
@@ -62,13 +41,15 @@ getResponce(_method, _url) ->
     end,
 	{_codeStatus, _src, _contentType, _date, _hasBody, _contentLength}.
 
-getSrc(_url) -> 
+getSrc(_url) ->
+	[{_, ROOTDIR}] = ets:lookup(settings, "root"),
+	_validUrl = "/" ++ getValidUrl(_url),
 	case binary:last(_url) of
 	    $/ ->
-	       	_src = ?DOCUMENT_ROOT ++ binary_to_list(_url) ++ ?INDEX,
-	       	_path = ?DOCUMENT_ROOT ++ binary_to_list(_url);
+	       	_src = ROOTDIR ++ _validUrl ++ ?INDEX,
+	       	_path = ROOTDIR ++ _validUrl;
 	    _ ->
-	        _src = ?DOCUMENT_ROOT ++ _url,
+	        _src = ROOTDIR ++ _validUrl,
 	        %это будет путь до файла несмотря на то что по идеи должен быть путь к папке
 	        _path = _src
 	end,
@@ -83,3 +64,9 @@ getSrc(_url) ->
         			{404, _src}
     			end
 	end.
+
+
+getValidUrl(_url) ->
+	_urlBits = string:tokens(binary_to_list(_url), "/"),
+	_validBits = lists:delete("..", _urlBits),
+	string:join(_validBits, "/").
