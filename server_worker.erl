@@ -3,9 +3,10 @@
 
 -define(INDEX, "index.html").
 -define(SLASH, "/").
+-define(Timeout, 5000).
 
 loop(_socket) ->
-    case gen_tcp:recv(_socket, 0) of
+    case gen_tcp:recv(_socket, 0, ?Timeout) of
         {ok, _data} ->
             {_method,  _url} = format_http:parse(_data),
             case isNotValidUrl(_url) of 
@@ -15,17 +16,16 @@ loop(_socket) ->
         			{_codeStatus, _src, _contentType, _date, _hasBody, _contentLength} = {403, null, null, null, false, null}
 			end,
             _header = format_http:getHeader(_codeStatus, _contentType, _date, _contentLength),
-            %io:fwrite("HEADER ~n ~p ~n~n", [list_to_binary(_header)]),
-            %io:fwrite("SRC ~n ~p ~n~n", [list_to_binary(_src)]),
             gen_tcp:send(_socket, _header),
             case _hasBody of 
                 true -> 
-                    {ok, _} = file:sendfile(list_to_binary(_src), _socket);
+                    file:sendfile(list_to_binary(_src), _socket);
                 false ->
                     ok
             end,
             gen_tcp:close(_socket);
-        {error, closed} ->
+        _ ->
+            gen_tcp:close(_socket),
             ok
     end.
 
